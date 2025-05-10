@@ -1,0 +1,187 @@
+
+import React, { useRef, useEffect, useState } from 'react';
+import { Camera } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+
+interface VideoFeedProps {
+  onCapture?: (imageSrc: string) => void;
+  showControls?: boolean;
+  processingFeed?: boolean;
+  detectedFaces?: {
+    name: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }[];
+}
+
+const VideoFeed: React.FC<VideoFeedProps> = ({ 
+  onCapture, 
+  showControls = true, 
+  processingFeed = false,
+  detectedFaces = []
+}) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      // Clean up stream when component unmounts
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: "user" 
+        } 
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      
+      setStream(mediaStream);
+      setCameraActive(true);
+    } catch (err) {
+      console.error("Error accessing webcam:", err);
+      alert("Failed to access webcam. Please ensure you have granted camera permissions.");
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      setStream(null);
+      setCameraActive(false);
+    }
+  };
+
+  const captureImage = () => {
+    if (videoRef.current && canvasRef.current && onCapture) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      const context = canvas.getContext('2d');
+      
+      if (context) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageSrc = canvas.toDataURL('image/png');
+        onCapture(imageSrc);
+      }
+    }
+  };
+
+  // Draw face boxes on video
+  useEffect(() => {
+    if (!processingFeed || !videoRef.current || !canvasRef.current || detectedFaces.length === 0) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    
+    if (!context) return;
+    
+    const drawBoxes = () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      // Draw the video frame first
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Draw bounding boxes and labels
+      detectedFaces.forEach(face => {
+        // Draw box
+        context.strokeStyle = '#3B82F6'; // blue border
+        context.lineWidth = 2;
+        context.strokeRect(face.x, face.y, face.width, face.height);
+        
+        // Draw background for text
+        context.fillStyle = 'rgba(59, 130, 246, 0.7)'; // semi-transparent blue
+        context.fillRect(face.x, face.y - 30, face.width, 30);
+        
+        // Draw text
+        context.fillStyle = '#FFFFFF'; // white text
+        context.font = '16px sans-serif';
+        context.fillText(face.name, face.x + 5, face.y - 10);
+      });
+      
+      requestAnimationFrame(drawBoxes);
+    };
+    
+    if (cameraActive) {
+      drawBoxes();
+    }
+    
+  }, [processingFeed, detectedFaces, cameraActive]);
+
+  return (
+    <div className="border rounded-lg overflow-hidden bg-gray-50 relative">
+      <div className="aspect-video relative">
+        {cameraActive ? (
+          <>
+            <video 
+              ref={videoRef} 
+              className={`w-full h-full object-cover ${processingFeed ? 'hidden' : ''}`}
+              autoPlay 
+              playsInline
+            />
+            <canvas 
+              ref={canvasRef} 
+              className={`absolute top-0 left-0 w-full h-full ${processingFeed ? '' : 'hidden'}`}
+            />
+          </>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <div className="text-center">
+              <Camera className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+              <p className="text-gray-500">Camera inactive</p>
+            </div>
+          </div>
+        )}
+        {processingFeed && (
+          <div className="absolute bottom-4 right-4 bg-brand-blue text-white py-1 px-3 rounded-full text-xs animate-pulse">
+            Processing
+          </div>
+        )}
+      </div>
+      
+      {showControls && (
+        <div className="p-4 border-t bg-white flex justify-between items-center">
+          {!cameraActive ? (
+            <Button onClick={startCamera} className="bg-brand-blue hover:bg-brand-darkBlue">
+              Start Camera
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button onClick={stopCamera} variant="outline">
+                Stop Camera
+              </Button>
+              {onCapture && (
+                <Button onClick={captureImage} className="bg-brand-green hover:bg-green-700">
+                  Capture Face
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default VideoFeed;
