@@ -27,6 +27,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -40,6 +41,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
   const startCamera = async () => {
     try {
       setError(null);
+      setCapturedImage(null); // Clear any previous capture
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           width: { ideal: 640 },
@@ -89,6 +91,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         const imageSrc = canvas.toDataURL('image/png');
+        setCapturedImage(imageSrc);
         onCapture(imageSrc);
       }
     }
@@ -158,7 +161,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
           <>
             <video 
               ref={videoRef} 
-              className={`w-full h-full object-cover ${processingFeed ? 'hidden' : ''}`}
+              className={`w-full h-full object-cover ${processingFeed || capturedImage ? 'hidden' : ''}`}
               autoPlay 
               playsInline
               muted
@@ -167,6 +170,18 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
               ref={canvasRef} 
               className={`absolute top-0 left-0 w-full h-full ${processingFeed ? '' : 'hidden'}`}
             />
+            
+            {capturedImage && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="bg-white p-2 rounded-lg shadow-lg max-w-sm">
+                  <img 
+                    src={capturedImage} 
+                    alt="Captured face" 
+                    className="max-w-full h-auto rounded"
+                  />
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -211,8 +226,21 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
                 Stop Camera
               </Button>
               {onCapture && (
-                <Button onClick={captureImage} className="bg-brand-green hover:bg-green-700">
-                  Capture Face
+                <Button 
+                  onClick={captureImage} 
+                  className="bg-brand-green hover:bg-green-700"
+                  disabled={!!capturedImage}
+                >
+                  {capturedImage ? 'Image Captured' : 'Capture Face'}
+                </Button>
+              )}
+              {capturedImage && (
+                <Button 
+                  onClick={() => setCapturedImage(null)} 
+                  variant="outline" 
+                  className="ml-2"
+                >
+                  Clear Image
                 </Button>
               )}
             </div>
