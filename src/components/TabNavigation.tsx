@@ -17,17 +17,17 @@ const TabNavigation: React.FC<TabNavigationProps> = ({ className }) => {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="/" asChild>
             <Link to="/" className={currentPath === "/" ? "data-[state=active]:bg-brand-blue data-[state=active]:text-white" : ""}>
+              Home
+            </Link>
+          </TabsTrigger>
+          <TabsTrigger value="/registration" asChild>
+            <Link to="/registration" className={currentPath === "/registration" ? "data-[state=active]:bg-brand-blue data-[state=active]:text-white" : ""}>
               Registration
             </Link>
           </TabsTrigger>
           <TabsTrigger value="/recognition" asChild>
             <Link to="/recognition" className={currentPath === "/recognition" ? "data-[state=active]:bg-brand-blue data-[state=active]:text-white" : ""}>
               Recognition
-            </Link>
-          </TabsTrigger>
-          <TabsTrigger value="/chat" asChild>
-            <Link to="/chat" className={currentPath === "/chat" ? "data-[state=active]:bg-brand-blue data-[state=active]:text-white" : ""}>
-              Chat
             </Link>
           </TabsTrigger>
         </TabsList>
