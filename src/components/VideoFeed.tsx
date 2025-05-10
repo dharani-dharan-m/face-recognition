@@ -26,6 +26,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -38,6 +39,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
 
   const startCamera = async () => {
     try {
+      setError(null);
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           width: { ideal: 640 },
@@ -48,13 +50,19 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(e => {
+            console.error("Error playing video:", e);
+            setError("Error playing video stream");
+          });
+        };
       }
       
       setStream(mediaStream);
       setCameraActive(true);
     } catch (err) {
       console.error("Error accessing webcam:", err);
-      alert("Failed to access webcam. Please ensure you have granted camera permissions.");
+      setError("Failed to access webcam. Please ensure you have granted camera permissions.");
     }
   };
 
@@ -88,15 +96,22 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
 
   // Draw face boxes on video
   useEffect(() => {
-    if (!processingFeed || !videoRef.current || !canvasRef.current || detectedFaces.length === 0) return;
-
+    if (!processingFeed || !videoRef.current || !canvasRef.current) return;
+    
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
     
     if (!context) return;
     
+    let animationFrame: number;
+    
     const drawBoxes = () => {
+      if (!videoRef.current || !video.videoWidth) {
+        animationFrame = requestAnimationFrame(drawBoxes);
+        return;
+      }
+      
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
@@ -104,29 +119,36 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       
       // Draw bounding boxes and labels
-      detectedFaces.forEach(face => {
-        // Draw box
-        context.strokeStyle = '#3B82F6'; // blue border
-        context.lineWidth = 2;
-        context.strokeRect(face.x, face.y, face.width, face.height);
-        
-        // Draw background for text
-        context.fillStyle = 'rgba(59, 130, 246, 0.7)'; // semi-transparent blue
-        context.fillRect(face.x, face.y - 30, face.width, 30);
-        
-        // Draw text
-        context.fillStyle = '#FFFFFF'; // white text
-        context.font = '16px sans-serif';
-        context.fillText(face.name, face.x + 5, face.y - 10);
-      });
+      if (detectedFaces && detectedFaces.length > 0) {
+        detectedFaces.forEach(face => {
+          // Draw box
+          context.strokeStyle = '#3B82F6'; // blue border
+          context.lineWidth = 2;
+          context.strokeRect(face.x, face.y, face.width, face.height);
+          
+          // Draw background for text
+          context.fillStyle = 'rgba(59, 130, 246, 0.7)'; // semi-transparent blue
+          context.fillRect(face.x, face.y - 30, face.width, 30);
+          
+          // Draw text
+          context.fillStyle = '#FFFFFF'; // white text
+          context.font = '16px sans-serif';
+          context.fillText(face.name, face.x + 5, face.y - 10);
+        });
+      }
       
-      requestAnimationFrame(drawBoxes);
+      animationFrame = requestAnimationFrame(drawBoxes);
     };
     
     if (cameraActive) {
       drawBoxes();
     }
     
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
   }, [processingFeed, detectedFaces, cameraActive]);
 
   return (
@@ -139,6 +161,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
               className={`w-full h-full object-cover ${processingFeed ? 'hidden' : ''}`}
               autoPlay 
               playsInline
+              muted
             />
             <canvas 
               ref={canvasRef} 
@@ -153,6 +176,22 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
             </div>
           </div>
         )}
+        
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-red-50/80">
+            <div className="bg-white p-4 rounded-lg shadow-lg max-w-xs">
+              <p className="text-red-500">{error}</p>
+              <Button 
+                onClick={() => setError(null)} 
+                variant="outline" 
+                className="mt-2 w-full"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        )}
+        
         {processingFeed && (
           <div className="absolute bottom-4 right-4 bg-brand-blue text-white py-1 px-3 rounded-full text-xs animate-pulse">
             Processing
