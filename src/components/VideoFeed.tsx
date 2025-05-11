@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { Camera, CameraOff, Video, VideoOff } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -196,7 +195,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
     }
   };
 
-  // Draw face boxes on video
+  // Draw face boxes on video - IMPORTANT for live recognition
   useEffect(() => {
     if (!processingFeed || !videoRef.current || !canvasRef.current) return;
     
@@ -214,13 +213,14 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
         return;
       }
       
+      // Make sure canvas is properly sized
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
-      // Draw the video frame first
+      // Draw the video frame first (this is crucial)
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      // Draw bounding boxes and labels
+      // Draw bounding boxes and labels for each detected face
       if (detectedFaces && detectedFaces.length > 0) {
         detectedFaces.forEach(face => {
           // Draw box
@@ -239,15 +239,20 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
         });
       }
       
+      // Continue the animation loop
       animationFrame = requestAnimationFrame(drawBoxes);
     };
     
+    // Only start drawing boxes if the camera is active
     if (cameraActive) {
+      console.log("Starting face detection rendering");
       drawBoxes();
     }
     
+    // Clean up animation frame on unmount or when dependencies change
     return () => {
       if (animationFrame) {
+        console.log("Cleaning up animation frame");
         cancelAnimationFrame(animationFrame);
       }
     };
