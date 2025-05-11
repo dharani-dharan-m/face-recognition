@@ -1,7 +1,8 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Camera } from 'lucide-react';
+import { Camera, CameraOff } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface VideoFeedProps {
   onCapture?: (imageSrc: string) => void;
@@ -14,27 +15,43 @@ interface VideoFeedProps {
     width: number;
     height: number;
   }[];
+  cameraActive?: boolean;
+  setCameraActive?: (active: boolean) => void;
 }
 
 const VideoFeed: React.FC<VideoFeedProps> = ({ 
   onCapture, 
   showControls = true, 
   processingFeed = false,
-  detectedFaces = []
+  detectedFaces = [],
+  cameraActive: externalCameraActive,
+  setCameraActive: setExternalCameraActive
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [cameraActive, setCameraActive] = useState(false);
+  const [internalCameraActive, setInternalCameraActive] = useState(false);
+  const { toast } = useToast();
+  
+  // Use either internal or external camera state based on what's provided
+  const cameraActive = externalCameraActive !== undefined ? externalCameraActive : internalCameraActive;
+  const setCameraActive = setExternalCameraActive || setInternalCameraActive;
 
   useEffect(() => {
+    // Start camera automatically if external control sets it to active
+    if (externalCameraActive && !stream) {
+      startCamera();
+    } else if (externalCameraActive === false && stream) {
+      stopCamera();
+    }
+    
+    // Clean up stream when component unmounts
     return () => {
-      // Clean up stream when component unmounts
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [stream]);
+  }, [externalCameraActive]);
 
   const startCamera = async () => {
     try {
@@ -52,9 +69,18 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
       
       setStream(mediaStream);
       setCameraActive(true);
+      
+      toast({
+        title: "Camera active",
+        description: "Your camera is now turned on",
+      });
     } catch (err) {
       console.error("Error accessing webcam:", err);
-      alert("Failed to access webcam. Please ensure you have granted camera permissions.");
+      toast({
+        title: "Camera error",
+        description: "Failed to access webcam. Please ensure you have granted camera permissions.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -66,6 +92,11 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
       }
       setStream(null);
       setCameraActive(false);
+      
+      toast({
+        title: "Camera inactive",
+        description: "Your camera has been turned off",
+      });
     }
   };
 
@@ -148,7 +179,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <div className="text-center">
-              <Camera className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+              <CameraOff className="w-12 h-12 mx-auto text-gray-400 mb-2" />
               <p className="text-gray-500">Camera inactive</p>
             </div>
           </div>
@@ -163,17 +194,17 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
       {showControls && (
         <div className="p-4 border-t bg-white flex justify-between items-center">
           {!cameraActive ? (
-            <Button onClick={startCamera} className="bg-brand-blue hover:bg-brand-darkBlue">
-              Start Camera
+            <Button onClick={startCamera} className="bg-brand-blue hover:bg-brand-darkBlue flex items-center gap-2">
+              <Camera className="w-4 h-4" /> Start Camera
             </Button>
           ) : (
             <div className="flex gap-2">
-              <Button onClick={stopCamera} variant="outline">
-                Stop Camera
+              <Button onClick={stopCamera} variant="outline" className="flex items-center gap-2">
+                <CameraOff className="w-4 h-4" /> Stop Camera
               </Button>
               {onCapture && (
-                <Button onClick={captureImage} className="bg-brand-green hover:bg-green-700">
-                  Capture Face
+                <Button onClick={captureImage} className="bg-brand-green hover:bg-green-700 flex items-center gap-2">
+                  <Camera className="w-4 h-4" /> Capture Face
                 </Button>
               )}
             </div>

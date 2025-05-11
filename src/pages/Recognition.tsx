@@ -3,9 +3,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import VideoFeed from '@/components/VideoFeed';
 import { recognizeFaces } from '@/services/faceService';
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Camera, CameraOff } from "lucide-react";
 
 const Recognition = () => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
   const [detectedFaces, setDetectedFaces] = useState<Array<{
     name: string;
     confidence: number;
@@ -15,6 +18,7 @@ const Recognition = () => {
     height: number;
   }>>([]);
   const processingInterval = useRef<number | null>(null);
+  const { toast } = useToast();
   
   // Cleanup interval on unmount
   useEffect(() => {
@@ -27,6 +31,12 @@ const Recognition = () => {
 
   const startProcessing = () => {
     setIsProcessing(true);
+    setCameraActive(true);
+    
+    toast({
+      title: "Recognition started",
+      description: "Face recognition is now active",
+    });
     
     // Capture a frame every 1 second and recognize faces
     processingInterval.current = window.setInterval(async () => {
@@ -55,7 +65,13 @@ const Recognition = () => {
   
   const stopProcessing = () => {
     setIsProcessing(false);
+    setCameraActive(false);
     setDetectedFaces([]);
+    
+    toast({
+      title: "Recognition stopped",
+      description: "Face recognition has been deactivated",
+    });
     
     if (processingInterval.current !== null) {
       clearInterval(processingInterval.current);
@@ -73,22 +89,25 @@ const Recognition = () => {
             showControls={false} 
             processingFeed={isProcessing}
             detectedFaces={detectedFaces}
+            cameraActive={cameraActive}
+            setCameraActive={setCameraActive}
           />
           
           <div className="mt-4 flex justify-center space-x-4">
             {!isProcessing ? (
               <Button 
                 onClick={startProcessing} 
-                className="bg-brand-blue hover:bg-brand-darkBlue"
+                className="bg-brand-blue hover:bg-brand-darkBlue flex items-center gap-2"
               >
-                Start Face Recognition
+                <Camera className="w-4 h-4" /> Start Face Recognition
               </Button>
             ) : (
               <Button 
                 onClick={stopProcessing} 
                 variant="outline"
+                className="flex items-center gap-2"
               >
-                Stop Recognition
+                <CameraOff className="w-4 h-4" /> Stop Recognition
               </Button>
             )}
           </div>
