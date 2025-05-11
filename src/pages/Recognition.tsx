@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import VideoFeed from '@/components/VideoFeed';
 import { recognizeFaces } from '@/services/faceService';
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 
 const Recognition = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -16,7 +15,6 @@ const Recognition = () => {
     height: number;
   }>>([]);
   const processingInterval = useRef<number | null>(null);
-  const { toast } = useToast();
   
   // Cleanup interval on unmount
   useEffect(() => {
@@ -29,10 +27,6 @@ const Recognition = () => {
 
   const startProcessing = () => {
     setIsProcessing(true);
-    toast({
-      title: "Recognition Started",
-      description: "Scanning for recognized faces..."
-    });
     
     // Capture a frame every 1 second and recognize faces
     processingInterval.current = window.setInterval(async () => {
@@ -50,22 +44,11 @@ const Recognition = () => {
             const imageData = canvas.toDataURL('image/png');
             
             const faces = await recognizeFaces(imageData);
-            if (faces.length > 0 && faces.length !== detectedFaces.length) {
-              toast({
-                title: `${faces.length} Face${faces.length > 1 ? 's' : ''} Detected`,
-                description: "Recognition results updated"
-              });
-            }
             setDetectedFaces(faces);
           }
         }
       } catch (error) {
         console.error('Error during face recognition:', error);
-        toast({
-          title: "Recognition Error",
-          description: "An error occurred during face processing",
-          variant: "destructive"
-        });
       }
     }, 1000);
   };
@@ -78,11 +61,6 @@ const Recognition = () => {
       clearInterval(processingInterval.current);
       processingInterval.current = null;
     }
-    
-    toast({
-      title: "Recognition Stopped",
-      description: "Face detection has been turned off"
-    });
   };
 
   return (

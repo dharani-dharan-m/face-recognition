@@ -26,10 +26,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => (
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout><Index /></Layout>} />
           <Route path="/registration" element={<Layout><Registration /></Layout>} />
@@ -37,8 +37,8 @@ const App = () => (
           <Route path="/chat" element={<Layout><Chat /></Layout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </TooltipProvider>
-    </BrowserRouter>
+      </BrowserRouter>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 
