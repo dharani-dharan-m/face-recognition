@@ -31,6 +31,17 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Log camera status for debugging
+  useEffect(() => {
+    console.log("Camera active state:", cameraActive);
+    console.log("Stream exists:", !!stream);
+    if (videoRef.current) {
+      console.log("Video element ready:", !!videoRef.current);
+      console.log("Video playing:", !videoRef.current.paused);
+      console.log("Video has size:", videoRef.current.videoWidth, videoRef.current.videoHeight);
+    }
+  }, [cameraActive, stream]);
+
   useEffect(() => {
     return () => {
       // Clean up stream when component unmounts
@@ -40,11 +51,37 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
     };
   }, [stream]);
 
+  useEffect(() => {
+    // Log when detected faces change
+    console.log("Detected faces:", detectedFaces);
+  }, [detectedFaces]);
+
+  // Add an effect to ensure video is visible and playing
+  useEffect(() => {
+    if (cameraActive && videoRef.current && stream) {
+      const checkVideoStatus = () => {
+        if (videoRef.current) {
+          if (videoRef.current.paused) {
+            console.log("Video is paused, attempting to play...");
+            videoRef.current.play().catch(e => {
+              console.error("Failed to play video:", e);
+            });
+          }
+        }
+      };
+
+      const interval = setInterval(checkVideoStatus, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [cameraActive, stream]);
+
   const startCamera = async () => {
     try {
       setError(null);
       setCapturedImage(null); // Clear any previous capture
 
+      console.log("Starting camera...");
+      
       // Check if browser supports getUserMedia
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Your browser doesn't support accessing the camera");
@@ -59,17 +96,25 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
         audio: false 
       });
       
+      console.log("Got media stream:", mediaStream);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         
         // Wait for metadata to be loaded before playing
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
+            console.log("Video metadata loaded, attempting to play");
             videoRef.current.play()
               .then(() => {
                 console.log("Camera started successfully");
                 setCameraActive(true);
                 setStream(mediaStream);
+                
+                toast({
+                  title: "Camera Active",
+                  description: "Your camera is now active and running",
+                });
               })
               .catch(e => {
                 console.error("Error playing video:", e);
@@ -105,6 +150,11 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
       setStream(null);
       setCameraActive(false);
       console.log("Camera stopped");
+      
+      toast({
+        title: "Camera Stopped",
+        description: "Your camera has been turned off",
+      });
     }
   };
 
@@ -210,14 +260,14 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
           <>
             <video 
               ref={videoRef} 
-              className={`w-full h-full object-cover ${processingFeed || capturedImage ? 'hidden' : ''}`}
+              className={`w-full h-full object-cover ${processingFeed || capturedImage ? 'hidden' : 'block'}`}
               autoPlay 
               playsInline
               muted
             />
             <canvas 
               ref={canvasRef} 
-              className={`absolute top-0 left-0 w-full h-full ${processingFeed ? '' : 'hidden'}`}
+              className={`absolute top-0 left-0 w-full h-full ${processingFeed ? 'block' : 'hidden'}`}
             />
             
             {capturedImage && (
