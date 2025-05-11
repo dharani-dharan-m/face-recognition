@@ -39,22 +39,30 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
 
   useEffect(() => {
     // Start camera automatically if external control sets it to active
-    if (externalCameraActive && !stream) {
+    if (cameraActive && !stream) {
       startCamera();
-    } else if (externalCameraActive === false && stream) {
+    } else if (!cameraActive && stream) {
       stopCamera();
     }
     
     // Clean up stream when component unmounts
     return () => {
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach(track => {
+          track.stop();
+        });
+        setStream(null);
       }
     };
-  }, [externalCameraActive]);
+  }, [cameraActive]);
 
   const startCamera = async () => {
     try {
+      if (stream) {
+        // If we already have a stream, stop it first
+        stream.getTracks().forEach(track => track.stop());
+      }
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           width: { ideal: 640 },
@@ -70,12 +78,15 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
       setStream(mediaStream);
       setCameraActive(true);
       
+      console.log("Camera started successfully");
+      
       toast({
         title: "Camera active",
         description: "Your camera is now turned on",
       });
     } catch (err) {
       console.error("Error accessing webcam:", err);
+      setCameraActive(false);
       toast({
         title: "Camera error",
         description: "Failed to access webcam. Please ensure you have granted camera permissions.",
@@ -85,13 +96,19 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
   };
 
   const stopCamera = () => {
+    console.log("Stopping camera...");
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(track => {
+        console.log("Stopping track:", track.kind, track.readyState);
+        track.stop();
+      });
+      
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
+      
       setStream(null);
-      setCameraActive(false);
+      console.log("Camera stopped successfully");
       
       toast({
         title: "Camera inactive",
@@ -128,6 +145,8 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
     if (!context) return;
     
     const drawBoxes = () => {
+      if (!cameraActive) return; // Don't draw if camera is inactive
+      
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
@@ -151,7 +170,9 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
         context.fillText(face.name, face.x + 5, face.y - 10);
       });
       
-      requestAnimationFrame(drawBoxes);
+      if (cameraActive) {
+        requestAnimationFrame(drawBoxes);
+      }
     };
     
     if (cameraActive) {

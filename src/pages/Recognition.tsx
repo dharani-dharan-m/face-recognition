@@ -25,6 +25,7 @@ const Recognition = () => {
     return () => {
       if (processingInterval.current !== null) {
         clearInterval(processingInterval.current);
+        processingInterval.current = null;
       }
     };
   }, []);
